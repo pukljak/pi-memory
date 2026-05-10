@@ -304,6 +304,22 @@ export function handleApi(u: URL, deps: UiDeps) {
     deps.persist();
     return { ok: true, id, pinned: false };
   }
+  if (u.pathname === "/api/memory/superpowers-feedback") {
+    const id = (u.searchParams.get("id") || "").trim();
+    const vote = (u.searchParams.get("vote") || "").trim().toLowerCase();
+    if (!id) return { ok: false, error: "missing id" };
+    if (vote !== "accepted" && vote !== "rejected") return { ok: false, error: "invalid vote" };
+    const store = deps.getStore();
+    const hit = store.items.find((x: any) => x.id === id);
+    if (!hit) return { ok: false, error: "not found" };
+    const meta = { ...(hit.meta || {}) } as any;
+    if (vote === "accepted") meta.suggestionAccepted = Number(meta.suggestionAccepted || 0) + 1;
+    if (vote === "rejected") meta.suggestionRejected = Number(meta.suggestionRejected || 0) + 1;
+    hit.meta = meta;
+    hit.updatedAt = Date.now();
+    deps.persist();
+    return { ok: true, id, vote, accepted: Number(meta.suggestionAccepted || 0), rejected: Number(meta.suggestionRejected || 0) };
+  }
   if (u.pathname === "/api/memory/preference-confirm") {
     const id = (u.searchParams.get("id") || "").trim();
     if (!id) return { ok: false, error: "missing id" };

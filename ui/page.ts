@@ -84,6 +84,7 @@ export function renderPage(store: MemoryStore) {
       <div class="tabs">
         <button id="tab-main" class="tab-btn active">Memories & Observations</button>
         <button id="tab-playbook" class="tab-btn">Playbook</button>
+        <button id="tab-superpowers" class="tab-btn">Superpowers</button>
         <button id="tab-understanding" class="tab-btn">Understanding</button>
       </div>
 
@@ -126,6 +127,19 @@ export function renderPage(store: MemoryStore) {
 
       <div id="playbookView" style="display:none; margin-top:12px;">
         <div class="pb-grid" id="playbookCards"></div>
+      </div>
+
+      <div id="superpowersView" style="display:none; margin-top:12px;">
+        <div style="display:flex; gap:8px; margin-bottom:10px;">
+          <select id="superpowersTypeFilter">
+            <option value="*">All types</option>
+            <option value="decision">decision</option>
+            <option value="preference">preference</option>
+            <option value="constraint">constraint</option>
+            <option value="open-question">open-question</option>
+          </select>
+        </div>
+        <div class="pb-grid" id="superpowersCards"></div>
       </div>
 
       <div id="understandingView" style="display:none; margin-top:12px;">

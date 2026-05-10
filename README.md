@@ -20,10 +20,11 @@ Restart Pi after install.
 
 Think of Pi Memory as a long-term context layer for coding work.
 
-It does 3 things continuously:
+It does 4 things continuously:
 1. **Learns** from your sessions (prompts, tool outputs, assistant responses)
 2. **Stores** what matters (facts, patterns, lessons, preferences, decisions)
-3. **Injects** relevant memory before new tasks
+3. **Adjusts** memory quality using feedback + outcomes (accepted/rejected suggestions, test pass/fail signals, freshness)
+4. **Injects** relevant memory before new tasks
 
 So when you ask for a new feature next week, Pi can still remember key architectural decisions and team conventions.
 
@@ -70,7 +71,18 @@ Use this when you want Pi to become very opinionated about your codebase quality
 
 - `/memory.ui`
 
-Local web UI includes memory search, timeline view, playbook buckets, and understanding summaries.
+Local web UI includes memory search, timeline view, playbook buckets, understanding summaries, and a Superpowers tab.
+
+### Superpowers tab
+
+If you use Superpowers workflows (brainstorming/plans/subagent execution), Pi Memory learns from those loops too.
+
+- Captures Superpowers-style decisions/preferences/constraints from session outputs
+- Shows them in a dedicated **Superpowers** tab
+- Supports type filtering (`decision`, `preference`, `constraint`, `open-question`)
+- When a similar question comes back later, Pi Memory suggests prior answers
+- Suggestions track feedback (`accepted` / `rejected`) and ranking improves over time
+- Low-quality stale suggestions are automatically suppressed
 
 ---
 
@@ -152,6 +164,8 @@ This gives you:
 - Memory injection is compact to reduce token overhead.
 - Playbook entries get stronger over time via confirmations.
 - Conflict and duplicate handling are built in.
+- Superpowers suggestions have quality gates (confidence + low-quality suppression).
+- Outcome-aware learning adjusts memory confidence from test/tool signals.
 - Private-tagged content is sanitized before persistence.
 
 ---

@@ -9,6 +9,9 @@ import { loadStore, saveStore, emptyStore } from "./store/file-store";
 import { stats, listDomains, listProjects } from "./store/state";
 import { activeDomainId, bindDomainRoot, normalizePath, projectKeyOf, rootForCwd } from "./memory/scope";
 import { deriveMemories, summarize, uid } from "./memory/derive";
+import { computeSuperpowersSuggestionScore, deriveSuperpowersMemories } from "./memory/superpowers";
+import { adaptMemoryScores } from "./memory/adaptive";
+import { applyOutcomeLearning } from "./memory/outcomes";
 import { buildMemoryIndexBlock, filterMemories, filterObservations, searchMemory, upsertItems } from "./memory/search";
 import { pruneMemories } from "./memory/retention";
 import { autoClassifyPlaybookItems, buildPlaybookGuardrails, isCodingWorkPrompt, promoteConfirmedPreferences } from "./memory/playbook";
@@ -150,6 +153,52 @@ export default function memoryPlus(pi: ExtensionAPI) {
 
     if (!suggestions.length) return "";
     return ["<skill_suggestions>", "Potentially useful skills for this task:", ...suggestions.slice(0, 4).map((s, i) => `${i + 1}. ${s.name} — ${s.why}`), "</skill_suggestions>"].join("\n");
+  }
+
+  function buildSuperpowersAnswerSuggestionBlock(prompt: string, cwd: string) {
+    const low = (prompt || "").toLowerCase();
+    const looksLikeQuestion = /\?|\b(how|what|why|which|should|can|do we|is it)\b/.test(low);
+    if (!looksLikeQuestion) return "";
+
+    const key = projectKeyOf(cwd);
+    const tokens = new Set(low.replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((t) => t.length > 3));
+    if (!tokens.size) return "";
+
+    const candidates = store.items
+      .filter((x) => x.projectKey === key)
+      .filter((x) => String(x.source || "").includes("superpowers") || String((x.meta as any)?.source || "") === "superpowers");
+
+    const scored = candidates
+      .map((x) => {
+        const score = computeSuperpowersSuggestionScore(tokens, x as any);
+        const shown = Number(((x.meta as any) || {}).suggestionShown || 0);
+        const accepted = Number(((x.meta as any) || {}).suggestionAccepted || 0);
+        const confidence = Number(x.confidence || 0);
+        const suppressedLowQuality = shown >= 3 && accepted === 0;
+        return { x, score, suppressedLowQuality, confidence };
+      })
+      .filter((r) => r.confidence >= 0.72)
+      .filter((r) => !r.suppressedLowQuality && !((r.x.meta as any)?.suppressed))
+      .filter((r) => r.score >= 0.3)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 2);
+
+    for (const r of scored) {
+      const meta = (r.x.meta || {}) as any;
+      meta.suggestionShown = Number(meta.suggestionShown || 0) + 1;
+      r.x.meta = meta;
+      r.x.updatedAt = Date.now();
+    }
+
+    if (!scored.length) return "";
+    const rows = scored.map((r, i) => `${i + 1}. (${r.x.id}) score=${r.score.toFixed(2)} ${summarize(r.x.text, 180)}`);
+    return [
+      "<superpowers_suggestions>",
+      "Possible prior Superpowers answers found (non-blocking):",
+      ...rows,
+      "If relevant, reuse; if not, ask user and store the new answer.",
+      "</superpowers_suggestions>",
+    ].join("\n");
   }
 
   function autoRecordDomainLearning(cwd: string, assistantTexts: string[]) {
@@ -298,6 +347,8 @@ export default function memoryPlus(pi: ExtensionAPI) {
     }
     const skillSuggestions = suggestSkillsBlock(prompt);
     if (skillSuggestions) parts.push(skillSuggestions);
+    const superpowersSuggestions = buildSuperpowersAnswerSuggestionBlock(prompt, ctx.cwd);
+    if (superpowersSuggestions) parts.push(superpowersSuggestions);
     const gate = buildFileReadGateBlock(ctx.cwd, prompt);
     if (gate) parts.push(gate);
     const block = buildMemoryIndexBlock(store, prompt, ctx.cwd);
@@ -322,13 +373,17 @@ export default function memoryPlus(pi: ExtensionAPI) {
       if (t) texts.push(t);
       addObservation(store, { id: uid(), sessionId, projectKey: projectKeyOf(ctx.cwd), at: Date.now(), type: "assistant", title: "assistant_message", content: summarize(t || "(no text)", 900) });
     }
-    const candidate = deriveMemories(texts.join("\n"), projectKeyOf(ctx.cwd));
+    const baseCandidate = deriveMemories(texts.join("\n"), projectKeyOf(ctx.cwd));
+    const superpowersCandidate = deriveSuperpowersMemories(texts.join("\n"), projectKeyOf(ctx.cwd));
+    const candidate = [...baseCandidate, ...superpowersCandidate];
     if (candidate.length) {
       autoClassifyPlaybookItems(candidate as any);
       upsertItems(store, candidate);
     }
     autoRecordDomainLearning(ctx.cwd, texts);
     autoClassifyPlaybookItems(store.items as any);
+    applyOutcomeLearning(store, projectKeyOf(ctx.cwd), sessionId);
+    adaptMemoryScores(store);
     autoSummarizeClusters(ctx.cwd);
     promoteConfirmedPreferences(store, 3);
     const endPrune = prune(false);

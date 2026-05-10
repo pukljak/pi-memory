@@ -1,7 +1,7 @@
 export function renderClientScript() {
   return `
   const state = {
-    mem: [], obs: [], memPage:1, obsPage:1, pageSize:50, playbookCategory:'*', tab:'main', understanding: [], views: {}, understandingMeta: { generatedAt: 0, cached: false, feedback: { accurate: 0, inaccurate: 0 } },
+    mem: [], obs: [], memPage:1, obsPage:1, pageSize:50, playbookCategory:'*', superpowersType:'*', tab:'main', understanding: [], views: {}, understandingMeta: { generatedAt: 0, cached: false, feedback: { accurate: 0, inaccurate: 0 } },
     memSort:{k:'id',d:'desc'}, obsSort:{k:'at',d:'desc'}
   };
   function esc(s){return String(s ?? '').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]||m));}
@@ -22,11 +22,14 @@ export function renderClientScript() {
     state.tab = tab;
     document.getElementById('mainView').style.display = tab==='main' ? '' : 'none';
     document.getElementById('playbookView').style.display = tab==='playbook' ? '' : 'none';
+    document.getElementById('superpowersView').style.display = tab==='superpowers' ? '' : 'none';
     document.getElementById('understandingView').style.display = tab==='understanding' ? '' : 'none';
     document.getElementById('tab-main').classList.toggle('active', tab==='main');
     document.getElementById('tab-playbook').classList.toggle('active', tab==='playbook');
+    document.getElementById('tab-superpowers').classList.toggle('active', tab==='superpowers');
     document.getElementById('tab-understanding').classList.toggle('active', tab==='understanding');
     if (tab === 'playbook') renderPlaybookCards();
+    if (tab === 'superpowers') renderSuperpowersCards();
     if (tab === 'understanding') renderUnderstandingCards();
   }
   function showPlaybookDetail(m){
@@ -108,6 +111,54 @@ export function renderClientScript() {
     meta.className = 'pb-card';
     meta.innerHTML = '<h4>Summary status</h4><div>generated: ' + esc(stamp) + ' · ' + (m.cached ? 'cache hit' : 'fresh') + '</div><div style="margin-top:6px">feedback: 👍 ' + esc(String((m.feedback||{}).accurate||0)) + ' · 👎 ' + esc(String((m.feedback||{}).inaccurate||0)) + '</div>';
     root.appendChild(meta);
+  }
+  function renderSuperpowersCards(){
+    const root = document.getElementById('superpowersCards');
+    root.innerHTML = '';
+    const list = state.mem
+      .filter(m => String((m?.meta||{}).source||'') === 'superpowers' || String(m?.source||'').includes('superpowers'))
+      .filter(m => state.superpowersType === '*' || String((m?.meta||{}).superpowersType||'') === state.superpowersType)
+      .slice(0, 50);
+    if (!list.length) {
+      root.innerHTML = '<div class="pb-card"><h4>No Superpowers learnings yet</h4><div style="color:var(--muted)">Work through brainstorming/planning and memories will appear here.</div></div>';
+      return;
+    }
+    for (const m of list) {
+      const card = document.createElement('div');
+      card.className = 'pb-card';
+      const spType = String((m?.meta||{}).superpowersType || 'note');
+      const shown = Number((m?.meta||{}).suggestionShown || 0);
+      const accepted = Number((m?.meta||{}).suggestionAccepted || 0);
+      const rejected = Number((m?.meta||{}).suggestionRejected || 0);
+      card.innerHTML =
+        '<h4>' + esc(spType) + '</h4>' +
+        '<div style="margin:6px 0">' + esc(String(m?.text||'')) + '</div>' +
+        '<div class="mono" style="font-size:12px">id: ' + esc(String(m?.id||'')) + ' · conf: ' + esc(Number(m?.confidence||0).toFixed(2)) + '</div>' +
+        '<div style="margin-top:4px;color:var(--muted);font-size:12px">suggested: ' + esc(String(shown)) + ' · accepted: ' + esc(String(accepted)) + ' · rejected: ' + esc(String(rejected)) + '</div>';
+      const actions = document.createElement('div');
+      actions.style.marginTop = '8px';
+      actions.style.display = 'flex';
+      actions.style.gap = '10px';
+      const view = document.createElement('span');
+      view.className = 'link';
+      view.textContent = 'View detail';
+      view.onclick = () => showPlaybookDetail(m);
+      const pin = document.createElement('span');
+      pin.className = 'link';
+      pin.textContent = m?.pinned ? 'Unpin' : 'Pin';
+      pin.onclick = () => togglePin(String(m?.id||''), !!m?.pinned);
+      const accept = document.createElement('span');
+      accept.className = 'link';
+      accept.textContent = 'Mark accepted';
+      accept.onclick = () => superpowersFeedback(String(m?.id||''), 'accepted');
+      const reject = document.createElement('span');
+      reject.className = 'link';
+      reject.textContent = 'Mark rejected';
+      reject.onclick = () => superpowersFeedback(String(m?.id||''), 'rejected');
+      actions.append(view, pin, accept, reject);
+      card.appendChild(actions);
+      root.appendChild(card);
+    }
   }
   function renderPlaybookCards(){
     const cats = ['code-rule','code-standard','decision','preference','good-example','bad-example'];
@@ -289,6 +340,7 @@ export function renderClientScript() {
   function sortObs(k){ state.obsSort.d = state.obsSort.k===k && state.obsSort.d==='asc' ? 'desc' : 'asc'; state.obsSort.k=k; state.obsPage=1; render(); }
   async function confirmPreference(id){ await fetch('/api/memory/preference-confirm?id=' + encodeURIComponent(id)); await go(); }
   async function togglePin(id,isPinned){ const endpoint = isPinned ? '/api/memory/unpin?id=' : '/api/memory/pin?id='; await fetch(endpoint + encodeURIComponent(id)); await go(); }
+  async function superpowersFeedback(id,vote){ await fetch('/api/memory/superpowers-feedback?id=' + encodeURIComponent(id) + '&vote=' + encodeURIComponent(vote)); await go(); }
   async function loadTimeline(id){
     const r = await fetch('/api/timeline?id='+encodeURIComponent(id)+'&before=4&after=4');
     const j = await r.json();
@@ -399,6 +451,7 @@ export function renderClientScript() {
       if (state.obs.length) renderObsRows(state.obs.slice(0, state.pageSize));
       render();
       if (state.tab === 'playbook') renderPlaybookCards();
+      if (state.tab === 'superpowers') renderSuperpowersCards();
       await loadUnderstanding(false);
       if (!state.mem.length && !state.obs.length) document.getElementById('timeline').textContent = 'No rows for current project filter. Try selecting a project from dropdown or clear filters and Apply.';
     } catch (e) {
@@ -412,7 +465,9 @@ export function renderClientScript() {
     on('applyBtn', 'click', go);
     on('tab-main', 'click', () => setTab('main'));
     on('tab-playbook', 'click', () => setTab('playbook'));
+    on('tab-superpowers', 'click', () => setTab('superpowers'));
     on('tab-understanding', 'click', () => setTab('understanding'));
+    on('superpowersTypeFilter', 'change', (e) => { state.superpowersType = e.target.value || '*'; if (state.tab === 'superpowers') renderSuperpowersCards(); });
     on('refreshUnderstanding', 'click', () => loadUnderstanding(true));
     on('saveViewBtn', 'click', () => saveView());
     on('loadViewBtn', 'click', () => loadSelectedView());

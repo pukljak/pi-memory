@@ -42,4 +42,15 @@ describe("ui api", () => {
     assert.equal(out.promoted, true);
     assert.equal(d.getStore().items[0].pinned, true);
   });
+
+  it("handles superpowers feedback endpoint", () => {
+    const d = deps();
+    d.getStore().items.push({ id: "s1", kind: "lesson", scope: "project", projectKey: "/repo", text: "superpowers decision", confidence: 0.85, source: "agent_end:superpowers", createdAt: Date.now(), updatedAt: Date.now(), meta: { source: "superpowers" } });
+    const out1 = handleApi(new URL("http://x/api/memory/superpowers-feedback?id=s1&vote=accepted"), d) as any;
+    const out2 = handleApi(new URL("http://x/api/memory/superpowers-feedback?id=s1&vote=rejected"), d) as any;
+    assert.equal(out1.ok, true);
+    assert.equal(out2.ok, true);
+    assert.equal(Number(d.getStore().items[0].meta.suggestionAccepted), 1);
+    assert.equal(Number(d.getStore().items[0].meta.suggestionRejected), 1);
+  });
 });
