@@ -146,7 +146,11 @@ export function renderClientScript() {
       const pin = document.createElement('span');
       pin.className = 'link';
       pin.textContent = m?.pinned ? 'Unpin' : 'Pin';
-      pin.onclick = () => togglePin(String(m?.id||''), !!m?.pinned);
+      pin.onclick = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        await togglePin(String(m?.id||''), !!m?.pinned);
+      };
       const accept = document.createElement('span');
       accept.className = 'link';
       accept.textContent = 'Mark accepted';
@@ -216,7 +220,11 @@ export function renderClientScript() {
         const pin = document.createElement('span');
         pin.className = 'link';
         pin.textContent = m?.pinned ? 'Unpin' : 'Pin';
-        pin.onclick = () => togglePin(String(m?.id||''), !!m?.pinned);
+        pin.onclick = async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          await togglePin(String(m?.id||''), !!m?.pinned);
+        };
         actions.appendChild(pin);
 
         if (String((m?.meta||{}).playbookCategory||'') === 'preference') {
@@ -250,7 +258,11 @@ export function renderClientScript() {
       const tdId = document.createElement('td'); tdId.className='mono'; tdId.textContent = String(m?.id||'');
       const tdPin = document.createElement('td');
       const a = document.createElement('span'); a.className='link'; a.textContent = m?.pinned ? 'Unpin' : 'Pin';
-      a.onclick = () => togglePin(String(m?.id||''), !!m?.pinned);
+      a.onclick = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        await togglePin(String(m?.id||''), !!m?.pinned);
+      };
       tdPin.textContent = m?.pinned ? '📌 ' : ''; tdPin.appendChild(a);
       const tdKind = document.createElement('td'); tdKind.textContent = String(m?.kind||'');
       const tdPb = document.createElement('td'); tdPb.textContent = String((m?.meta||{}).playbookCategory||'');

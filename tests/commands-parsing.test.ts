@@ -22,15 +22,8 @@ describe("command parsing", () => {
     assert.equal(h.notifications.at(-1)?.level, "error");
   });
 
-  it("memory.decision validates decision and rationale", async () => {
-    await h.commands.get("memory.decision").handler("add just-decision", h.ctx);
-    assert.equal(h.notifications.at(-1)?.level, "error");
-  });
-
-  it("memory.codebase.root set binds root", async () => {
-    await h.commands.get("memory.codebase.root").handler("set ./services api", h.ctx);
-    assert.ok(Array.isArray(h.store.domains.api));
-    assert.equal(h.store.domains.api.length, 1);
+  it("memory.ui command is registered", async () => {
+    assert.ok(h.commands.get("memory.ui"));
   });
 
   it("memory.forget removes by text", async () => {
@@ -39,9 +32,7 @@ describe("command parsing", () => {
     assert.equal(h.store.items.length, 0);
   });
 
-  it("memory.preference.confirm errors for unknown id", async () => {
-    await h.commands.get("memory.preference.confirm").handler("missing", h.ctx);
-    assert.equal(h.notifications.at(-1)?.level, "error");
-    assert.match(h.notifications.at(-1)?.message || "", /not found/i);
+  it("memory.playbook command is registered", async () => {
+    assert.ok(h.commands.get("memory.playbook"));
   });
 });

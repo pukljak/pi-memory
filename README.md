@@ -36,14 +36,14 @@ If you only use these, you already get strong value:
 
 - `/memory.status` — quick health check
 - `/memory.search <query>` — find known context
-- `/memory.recall <query> [--tokens N]` — compact memory pack for the task
 - `/memory.timeline <observation-id>` — inspect local chronology
+- `/memory.ui` — open the local memory web UI
 
 ### Typical daily flow
 
 1. Work normally with Pi.
-2. If needed, ask: `/memory.recall billing retries --tokens 600`
-3. Implement feature with recalled context.
+2. If needed, ask: `/memory.search billing retries`
+3. Inspect details with `/memory.timeline <id>`.
 4. Pi Memory learns from the outcome automatically.
 
 ---
@@ -55,17 +55,12 @@ Use this when you want Pi to become very opinionated about your codebase quality
 ### Playbook commands
 
 - `/memory.rule add <text>`
-- `/memory.standard add <text>`
-- `/memory.decision add <decision>|<rationale>|[alternatives]`
 - `/memory.preference add <text>`
-- `/memory.preference.confirm <id>`
 - `/memory.playbook`
 
 ### Hygiene controls
 
-- `/memory.pin <id>` / `/memory.unpin <id>`
 - `/memory.forget <id|text>`
-- `/memory.prune [--dry-run]`
 
 ### UI
 
@@ -86,56 +81,20 @@ If you use Superpowers workflows (brainstorming/plans/subagent execution), Pi Me
 
 ---
 
-## Multi-service / monorepo workflow (domain memory)
-
-In this extension, **domain** is a shared scope across related services/repos.
-
-Example:
-
-```bash
-/memory.codebase.root set /repo platform
-/memory.explore --deep /repo/services/auth platform
-/memory.explore --deep /repo/services/billing platform
-/memory.explore --deep /repo/services/orders platform
-/memory.snapshot --deep /repo platform
-```
-
-This gives you:
-- shared cross-service memory under `platform`
-- service-specific findings from each scanned path
-- stronger architecture recall for future implementation tasks
-
----
-
 ## Full command list
 
-### Inspect / recall
+### Core
 - `/memory.status`
 - `/memory.search <query>`
 - `/memory.timeline <observation-id>`
-- `/memory.recall <query> [--tokens N]`
-- `/memory.session.brief [--tokens N]`
 
 ### Playbook
 - `/memory.rule add <text>`
-- `/memory.standard add <text>`
-- `/memory.decision add <decision>|<rationale>|[alternatives]`
 - `/memory.preference add <text>`
-- `/memory.preference.confirm <id>`
-- `/memory.example good <file>|<snippet>|<why>`
-- `/memory.example bad <file>|<whyBad>|<badSnippet>|<correctedSnippet>`
 - `/memory.playbook`
 
 ### Maintenance
-- `/memory.pin <id>` / `/memory.unpin <id>`
 - `/memory.forget <id|text>`
-- `/memory.prune [--dry-run]`
-
-### Codebase exploration
-- `/memory.codebase.root set <root-path> [domain-id]`
-- `/memory.codebase.root show`
-- `/memory.explore [--deep] [root-path] [domain-id]`
-- `/memory.snapshot [--deep] [root-path] [domain-id]`
 
 ### UI
 - `/memory.ui`
@@ -162,7 +121,6 @@ This gives you:
 ## Notes
 
 - Memory injection is compact to reduce token overhead.
-- Playbook entries get stronger over time via confirmations.
 - Conflict and duplicate handling are built in.
 - Superpowers suggestions have quality gates (confidence + low-quality suppression).
 - Outcome-aware learning adjusts memory confidence from test/tool signals.
