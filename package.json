@@ -24,9 +24,15 @@
   "keywords": [
     "pi",
     "pi-extension",
+    "pi-package",
     "memory",
     "agent"
   ],
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
   "license": "MIT",
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": ">=0.65.0"

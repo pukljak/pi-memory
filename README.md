@@ -1,6 +1,10 @@
-# pi-memory
+# Pi Memory
 
-Persistent memory + observation timeline for Pi coding agent.
+**Long-term memory for Pi coding agent.**
+
+Pi Memory helps Pi remember your project over time: decisions, preferences, rules, gotchas, and what changed. The goal is simple — fewer repeated instructions, more consistent implementation.
+
+---
 
 ## Install
 
@@ -10,40 +14,103 @@ pi install npm:@pukljak/pi-memory
 
 Restart Pi after install.
 
+---
+
 ## What it does
 
-- Captures user/assistant/tool/system observations per session
-- Stores reusable memory items (facts, patterns, lessons, preferences)
-- Injects compact memory context before agent runs
-- Adds timeline/search/stats tools and `/memory.*` commands
-- Supports **domain-scoped memory** shared across related codebases
-- Includes local UI for memory, observations, timeline, and summaries
+Pi Memory continuously captures session context and turns it into reusable memory.
 
-## Commands
+It tracks:
+- user prompts
+- assistant outputs
+- tool execution outcomes
+- timeline of important observations
 
+Then, before new tasks, it injects compact relevant memory so Pi can work with your existing context instead of starting cold.
+
+---
+
+## How it works
+
+### 1) Capture
+During your normal work, it records observations and candidate memories.
+
+### 2) Classify
+It classifies memory into useful buckets like:
+- preferences
+- patterns
+- lessons
+- decisions / rules (playbook)
+
+### 3) Rank + recall
+For each new prompt, it ranks memories by relevance, quality, freshness, and scope.
+
+### 4) Guardrails
+For coding tasks, it injects playbook guardrails (rules/standards/decisions) so Pi follows project conventions.
+
+### 5) Retain + prune
+High-signal memories are reinforced over time; stale low-value memories are pruned.
+
+---
+
+## Why this is useful
+
+After enough usage, Pi starts behaving like someone who has worked in your codebase for months:
+- knows team preferences
+- remembers architectural choices
+- avoids repeated mistakes
+- carries context across sessions
+
+---
+
+## Core commands
+
+### Inspect / recall
 - `/memory.status`
 - `/memory.search <query>`
 - `/memory.timeline <observation-id>`
-- `/memory.forget <id|text>`
-- `/memory.pin <id>` / `/memory.unpin <id>`
-- `/memory.prune [--dry-run]`
+- `/memory.recall <query> [--tokens N]`
+
+### Playbook / standards
 - `/memory.rule add <text>`
 - `/memory.standard add <text>`
+- `/memory.decision add <decision>|<rationale>|[alternatives]`
 - `/memory.preference add <text>`
 - `/memory.preference.confirm <id>`
-- `/memory.decision add <decision>|<rationale>|[alternatives]`
-- `/memory.recall <query> [--tokens N]`
-- `/memory.session.brief [--tokens N]`
-- `/memory.example good <file>|<snippet>|<why>`
-- `/memory.example bad <file>|<whyBad>|<badSnippet>|<correctedSnippet>`
 - `/memory.playbook`
-- `/memory.ui`
+
+### Maintenance
+- `/memory.pin <id>` / `/memory.unpin <id>`
+- `/memory.forget <id|text>`
+- `/memory.prune [--dry-run]`
+
+### Codebase context
 - `/memory.codebase.root set <root-path> [domain-id]`
 - `/memory.codebase.root show`
 - `/memory.explore [--deep] [root-path] [domain-id]`
 - `/memory.snapshot [--deep] [root-path] [domain-id]`
 
-## Tools
+### UI
+- `/memory.ui`
+
+---
+
+## Example workflow (real-world)
+
+### Scenario: add a new feature after weeks of work
+
+1. You ship features and fixes normally over time.
+2. Pi Memory captures decisions, preferences, and timeline evidence.
+3. Later you ask: *"Add billing retry support for failed webhook deliveries."*
+4. Before coding, Pi gets:
+   - relevant architecture decisions
+   - project standards/rules
+   - recent related changes
+5. Pi implements with fewer corrections and better consistency.
+
+---
+
+## Tools exposed to agent
 
 - `memory_search`
 - `memory_remember`
@@ -51,38 +118,31 @@ Restart Pi after install.
 - `memory_stats`
 - `memory_timeline`
 
+---
+
 ## Storage
 
 - `~/.pi/pi-memory/memory.json`
 - `~/.pi/pi-memory/summary-cache.json`
 
-## Lifecycle hooks
+---
 
-- `session_start`
-- `before_agent_start`
-- `tool_execution_end`
-- `agent_end`
-- `session_shutdown`
+## Notes
+
+- Memory injection is compact to reduce token usage.
+- Domain-scoped memory can be shared across related services/repos.
+- Private tagged content is sanitized before persistence.
+
+---
 
 ## Development
 
 ```bash
-# in extension folder
 npm install
-npm run typecheck
+npm test
+npm pack --dry-run
 ```
 
-## Publishing checklist
+---
 
-1. Bump `package.json` version
-2. Update README and changelog
-3. Run typecheck/tests
-4. Verify install in clean Pi profile
-5. Publish with `npm publish --access public`
-
-## Notes
-
-- Memory blocks are injected compactly to reduce token usage
-- File-aware read gate hints prior observations before redundant reads
-- Pruning protects pinned and high-value items
-- `<private>...</private>` content is sanitized before persistence
+If you use Pi every day on the same codebase, Pi Memory is one of the highest-leverage extensions you can add.
