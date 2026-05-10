@@ -5,7 +5,7 @@ Persistent memory + observation timeline for Pi coding agent.
 ## Install
 
 ```bash
-pi install npm:pi-memory
+pi install npm:@pukljak/pi-memory
 ```
 
 Restart Pi after install.
