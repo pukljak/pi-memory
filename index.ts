@@ -2,6 +2,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { basename, join, resolve } from "node:path";
 import { homedir } from "node:os";
 import type { Server } from "node:http";
+import { readFile } from "node:fs/promises";
 import type { MemoryStore } from "./types";
 import { DEFAULT_MEMORY_PATH, DEFAULT_UI_PORT, EXT_STATE_KEY } from "./config";
 import { loadStore, saveStore, emptyStore } from "./store/file-store";
@@ -25,8 +26,52 @@ export default function memoryPlus(pi: ExtensionAPI) {
   let uiServer: Server | null = null;
   let uiPort = DEFAULT_UI_PORT;
   let sessionId = "unknown";
+  let lastUpdateCheck = 0;
+  let lastNotifiedVersion = "";
 
   const persist = async () => saveStore(memPath, store);
+
+  const PACKAGE_NAME = "@pukljak/pi-memory";
+  const UPDATE_CHECK_INTERVAL_MS = 1000 * 60 * 60 * 12;
+
+  function semverCompare(a: string, b: string) {
+    const pa = a.split(".").map((x) => Number(x) || 0);
+    const pb = b.split(".").map((x) => Number(x) || 0);
+    for (let i = 0; i < 3; i++) {
+      if ((pa[i] || 0) > (pb[i] || 0)) return 1;
+      if ((pa[i] || 0) < (pb[i] || 0)) return -1;
+    }
+    return 0;
+  }
+
+  async function localVersion() {
+    try {
+      const pkgPath = new URL("./package.json", import.meta.url);
+      const raw = await readFile(pkgPath, "utf8");
+      return JSON.parse(raw || "{}").version || "0.0.0";
+    } catch {
+      return "0.0.0";
+    }
+  }
+
+  async function maybeNotifyUpdate(ctx: any) {
+    const now = Date.now();
+    if (now - lastUpdateCheck < UPDATE_CHECK_INTERVAL_MS) return;
+    lastUpdateCheck = now;
+    try {
+      const res = await fetch("https://registry.npmjs.org/@pukljak/pi-memory/latest");
+      if (!res.ok) return;
+      const data: any = await res.json();
+      const latest = String(data?.version || "").trim();
+      if (!latest) return;
+      const current = await localVersion();
+      if (semverCompare(latest, current) > 0 && latest !== lastNotifiedVersion) {
+        lastNotifiedVersion = latest;
+        ctx.ui.notify(`Pi Memory update available: ${current} → ${latest}. Run: pi update npm:${PACKAGE_NAME}`, "info");
+      }
+    } catch {}
+  }
+
   const getStore = () => store;
   const prune = (dryRun = false) => pruneMemories(store, { dryRun });
 
@@ -189,14 +234,17 @@ export default function memoryPlus(pi: ExtensionAPI) {
     sessionId = (ctx.sessionManager.getSessionFile?.() || `session-${Date.now()}`) as string;
     memPath = join(homedir(), ...DEFAULT_MEMORY_PATH);
     store = await loadStore(memPath);
-    const prev = ctx.sessionManager.getEntries().find((e: any) => e.type === "custom" && e.customType === EXT_STATE_KEY);
+    const prev = ctx.sessionManager.getEntries().find((e: any) => e.type === "custom" && e.customType === EXT_STATE_KEY) as any;
     if (prev?.data?.port) uiPort = prev.data.port;
+    if (prev?.data?.lastUpdateCheck) lastUpdateCheck = Number(prev.data.lastUpdateCheck) || 0;
+    if (prev?.data?.lastNotifiedVersion) lastNotifiedVersion = String(prev.data.lastNotifiedVersion);
     addObservation(store, { id: uid(), sessionId, projectKey: projectKeyOf(ctx.cwd), at: Date.now(), type: "system", title: `session_start:${event.reason}`, content: `Session started (${event.reason})` });
     promoteConfirmedPreferences(store, 3);
     const startupPrune = prune(false);
     await persist();
     if (startupPrune.removed) ctx.ui.notify(`Pi Memory: auto-pruned ${startupPrune.removed} stale/low-value memories`, "info");
     ctx.ui.setStatus("pi-memory", `mem ${store.items.length} · obs ${store.observations.length}`);
+    void maybeNotifyUpdate(ctx);
   });
 
   pi.on("before_agent_start", async (event, ctx) => {
@@ -292,7 +340,7 @@ export default function memoryPlus(pi: ExtensionAPI) {
   pi.on("session_shutdown", async (event, ctx) => {
     addObservation(store, { id: uid(), sessionId, projectKey: projectKeyOf(ctx.cwd), at: Date.now(), type: "system", title: `session_shutdown:${event.reason}`, content: `Session shutdown (${event.reason})` });
     await persist();
-    pi.appendEntry(EXT_STATE_KEY, { port: uiPort, ts: Date.now() });
+    pi.appendEntry(EXT_STATE_KEY, { port: uiPort, ts: Date.now(), lastUpdateCheck, lastNotifiedVersion });
     if (uiServer) { uiServer.close(); uiServer = null; }
     ctx.ui.setStatus("pi-memory", "");
   });
